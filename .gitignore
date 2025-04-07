@@ -3,3 +3,7 @@
 *.gif
 *.h5
 *.pth
+
+# Ignore Python cache
+__pycache__/
+*.py[cod]
