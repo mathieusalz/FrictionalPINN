@@ -1,0 +1,5 @@
+# Ignore video and model files
+*.mp4
+*.gif
+*.h5
+*.pth
