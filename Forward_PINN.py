@@ -15,12 +15,21 @@ from PDE_funcs import PDE_nonDim, PDE_original, PDE_nonDim_mixed
 from forward import forward_original, forward_nonDim
 from typing_extensions import Literal
 
+
+config_types = Literal['original', 
+                       'non_dim_phys',
+                       'non_dim_norm',
+                       'original_nondim1',
+                       'original_nondim2',
+                       'non_dim_mixed1',
+                       'non_dim_mixed2']
+
 class Sequentialmodel(nn.Module):
     
     def __init__(self, 
                  layers, 
                  collocation_points, 
-                 config : Literal["original", "non_dim_stand", "non_dim_phys"] = "original", 
+                 config : config_types = "original", 
                  reduction = torch.mean, 
                  device = 'cpu'):
         super().__init__()
