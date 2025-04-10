@@ -264,3 +264,55 @@ class Result:
         ani.save("training_animation.mp4", writer=writer)
 
  
+    def animate_layer_activations(loss_list, t_test, final_output=None, save_path="layer_activations.mp4"):
+        plt.rcParams['animation.ffmpeg_path'] = r'C:\ffmpeg\ffmpeg.exe'
+
+        num_layers = len(loss_list['layer_activations'])
+        ncols = 4
+        nrows = int(np.ceil(num_layers / ncols))
+        
+        fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 5, nrows * 3))
+        axes = axes.flatten()
+
+        def update(frame):
+            for i, layer in enumerate(loss_list['layer_activations']):
+                ax = axes[i]
+                ax.clear()
+
+                data = loss_list['layer_activations'][layer][frame].detach().numpy() 
+                
+                ax.plot(t_test, data)
+
+                if final_output is not None:
+                    ax.plot(t_test, final_output, 'k', linewidth=1)
+
+                ax.set_title(f'Layer {layer}')
+
+            # Clear any unused subplots
+            for j in range(i + 1, len(axes)):
+                axes[j].clear()
+                axes[j].axis('off')
+
+        num_frames = len(loss_list['layer_activations'][list(loss_list['layer_activations'].keys())[0]])
+        ani = FuncAnimation(fig, update, frames=num_frames, repeat=False)
+        
+        writer = FFMpegWriter(fps=5, metadata=dict(artist='Me'), bitrate=1800)
+        ani.save(save_path, writer=writer)
+        plt.close(fig)
+
+    def plot_activations(self):
+
+        PINN = self.NN
+
+        fig, axes = plt.subplots(2, 4, figsize=(20, 10))  # 2 rows, 4 columns
+        axes = axes.flatten()  # Flatten the 2D array to 1D for easier indexing
+        final = PINN.forward(PINN.time).detach().numpy()
+
+        for i in range(1, 9):
+            lx = PINN.forward_by_layer(PINN.time, i).detach().numpy()
+            axes[i - 1].plot(PINN.time, lx)
+            axes[i - 1].set_title(f'Layer {i}')
+            axes[i - 1].plot(PINN.time, final, 'k')
+
+        plt.tight_layout()
+        plt.show()

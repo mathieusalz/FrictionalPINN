@@ -30,12 +30,35 @@ class Sequentialmodel(nn.Module):
                  layers, 
                  collocation_points, 
                  config : config_types = "original", 
-                 reduction = torch.mean, 
+                 reduction = torch.mean,
+                 activation = nn.Tanh(), 
                  device = 'cpu'):
         super().__init__()
-        self.activation = nn.Tanh()
+        self.activation = activation
         self.loss_function = nn.MSELoss(reduction ='mean')
         self.linears = nn.ModuleList([nn.Linear(layers[i], layers[i+1]) for i in range(len(layers)-1)])
+
+        # Define a learnable k per layer (except last layer, no activation)
+        # self.ks = nn.ParameterList([
+        #     nn.Parameter(torch.tensor(1.0, dtype=torch.double), requires_grad=True)
+        #     for _ in range(len(layers) - 2)
+        # ])
+
+        # self.ks = nn.ParameterList([nn.Parameter(torch.tensor(1.0, dtype=torch.double), requires_grad=True)])
+        # self.ks = nn.ParameterList()
+
+        # for i in range(len(layers) - 1):
+
+        #     # Only hidden layers have k parameters (exclude last layer)
+        #     if i < len(layers) - 2:
+        #         k = nn.Parameter(torch.ones(layers[i + 1], dtype=torch.double), requires_grad=True)
+        #         self.ks.append(k)
+
+        self.B = nn.Parameter(
+            torch.randn(3, 1) * 1,
+            requires_grad=False  # fixed random projection
+        )
+
         self.iter = 0
         
         self.loss_hist = []
@@ -45,6 +68,7 @@ class Sequentialmodel(nn.Module):
         self.layers = layers
         self.config = config
         self.reduction = reduction
+        self.verbose = True
 
         self.time = torch.from_numpy((collocation_points).reshape((-1, 1))).double().to(device)
 
@@ -126,8 +150,22 @@ class Sequentialmodel(nn.Module):
             nn.init.xavier_normal_(self.linears[i].weight.data, gain=1.0)
             nn.init.zeros_(self.linears[i].bias.data)
 
+    def set_verbose(self, state):
+        self.verbose = state
+
     def forward(self, z):
         return self.forward_func(self, z)
+
+    def forward_by_layer(self, t, layer_num):
+
+        a = t.double() #convert to double
+        for i in range(layer_num):         
+            z = self.linears[i](a)
+            a = self.activation(z)
+        
+        return a
+
+
 
     #loss function induced from initial condition
     def loss_IC(self):
@@ -183,13 +221,14 @@ class Sequentialmodel(nn.Module):
         loss.backward()        
         self.iter += 1
         
-        if self.iter <= 9:
-            _ = self.test()
-            print(f'Step: {self.iter} \t Total loss: {loss.item():.4e}  \t Initial Loss: {loss_ini.item():.4e} \t  PDE Loss: {loss_f.item():4e}')
+        if self.verbose:
+            if self.iter <= 9:
+                _ = self.test()
+                print(f'Step: {self.iter} \t Total loss: {loss.item():.4e}  \t Initial Loss: {loss_ini.item():.4e} \t  PDE Loss: {loss_f.item():4e}')
 
-        if self.iter % 100 == 0:
-            _ = self.test()
-            print(f'Step: {self.iter} \t Total loss: {loss.item():.4e}  \t Initial Loss: {loss_ini.item():.4e} \t  PDE Loss: {loss_f.item():4e}')
+            if self.iter % 100 == 0:
+                _ = self.test()
+                print(f'Step: {self.iter} \t Total loss: {loss.item():.4e}  \t Initial Loss: {loss_ini.item():.4e} \t  PDE Loss: {loss_f.item():4e}')
 
         return loss
     
